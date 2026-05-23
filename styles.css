@@ -321,9 +321,9 @@ strong { color: var(--clr-forest); font-weight: 600; }
   inset: 0;
   background: linear-gradient(
     105deg,
-    rgba(248, 245, 239, 0.92) 0%,
-    rgba(248, 245, 239, 0.80) 45%,
-    rgba(44, 74, 62, 0.35) 100%
+    rgba(248, 245, 239, 0.82) 0%,
+    rgba(248, 245, 239, 0.55) 40%,
+    rgba(44, 74, 62, 0.15) 100%
   );
   z-index: 1;
 }
