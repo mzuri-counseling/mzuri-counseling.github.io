@@ -1,9 +1,26 @@
 /* ==========================================
    Mzuri Counseling & Wellness — main.js
-   Multi-page version
+   Multi-page version with EmailJS
    ========================================== */
 
+/* ------------------------------------------
+   EmailJS Configuration
+------------------------------------------ */
+const EMAILJS_SERVICE_ID  = 'service_qfdhaoh';
+const EMAILJS_TEMPLATE_ID = 'template_xab225g';
+const EMAILJS_PUBLIC_KEY  = 'zv9CrvYeZuuOaISzD';
+
+// Initialise EmailJS as soon as the script loads
+if (typeof emailjs !== 'undefined') {
+  emailjs.init({ publicKey: EMAILJS_PUBLIC_KEY });
+}
+
 document.addEventListener('DOMContentLoaded', () => {
+
+  // Initialise again inside DOMContentLoaded as a safety net
+  if (typeof emailjs !== 'undefined') {
+    emailjs.init({ publicKey: EMAILJS_PUBLIC_KEY });
+  }
 
   /* ------------------------------------------
      1. HEADER scroll shadow
@@ -54,7 +71,7 @@ document.addEventListener('DOMContentLoaded', () => {
   /* ------------------------------------------
      3b. Cross-page anchor scroll
      Handles links like "index.html#contact"
-     landing on the target page with offset
+     arriving on the page with the hash
   ------------------------------------------ */
   const hash = window.location.hash;
   if (hash) {
@@ -84,7 +101,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
   /* ------------------------------------------
-     5. SERVICE CARD stagger
+     5. SERVICE CARD stagger on scroll
   ------------------------------------------ */
   const cardObserver = new IntersectionObserver((entries) => {
     entries.forEach(entry => {
@@ -104,7 +121,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
   /* ------------------------------------------
-     6. CONTACT FORM — validation + submit
+     6. CONTACT FORM — EmailJS submission
   ------------------------------------------ */
   const form        = document.getElementById('contact-form');
   const formSuccess = document.getElementById('form-success');
@@ -113,56 +130,121 @@ document.addEventListener('DOMContentLoaded', () => {
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
 
-      const btn   = form.querySelector('button[type="submit"]');
+      const btn      = form.querySelector('button[type="submit"]');
       const origText = btn.textContent;
-      const name  = form.querySelector('#name').value.trim();
-      const email = form.querySelector('#email').value.trim();
 
-      if (!name) { shakeField('#name'); return; }
+      // --- Grab field values ---
+      const name    = form.querySelector('#name').value.trim();
+      const email   = form.querySelector('#email').value.trim();
+      const phone   = form.querySelector('#phone').value.trim();
+      const service = form.querySelector('#service').value;
+      const message = form.querySelector('#message').value.trim();
+
+      // --- Client-side validation ---
+      if (!name) {
+        shakeField('#name');
+        showFieldError('#name', 'Please enter your name.');
+        return;
+      }
       if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
         shakeField('#email');
         showFieldError('#email', 'Please enter a valid email address.');
         return;
       }
 
+      // --- UI: loading state ---
       btn.textContent = 'Sending...';
-      btn.disabled = true;
+      btn.disabled    = true;
 
-      // Replace the timeout below with real EmailJS or fetch call
-      await new Promise(r => setTimeout(r, 1200));
+      // --- Build the template parameters ---
+      // These variable names must match your EmailJS template exactly.
+      const templateParams = {
+        from_name : name,
+        from_email: email,
+        phone     : phone   || 'Not provided',
+        service   : service || 'Not specified',
+        message   : message || 'No message provided',
+        reply_to  : email,
+      };
 
-      form.style.display = 'none';
-      formSuccess.style.display = 'block';
-      form.reset();
-      btn.textContent = origText;
-      btn.disabled = false;
+      try {
+        await emailjs.send(
+          EMAILJS_SERVICE_ID,
+          EMAILJS_TEMPLATE_ID,
+          templateParams
+        );
+
+        // --- Success ---
+        form.style.display        = 'none';
+        formSuccess.style.display = 'block';
+        form.reset();
+
+      } catch (error) {
+        // --- Error: show inline message, re-enable button ---
+        console.error('EmailJS error:', error);
+        showFormError('Something went wrong. Please try emailing mae@mzuricounseling.com directly or calling 908-800-2061.');
+        btn.textContent = origText;
+        btn.disabled    = false;
+      }
     });
   }
 
+
+  /* ------------------------------------------
+     Helper: shake an invalid field
+  ------------------------------------------ */
   function shakeField(selector) {
     const el = document.querySelector(selector);
     if (!el) return;
     el.style.animation = 'none';
-    el.offsetHeight;
+    el.offsetHeight; // force reflow
     el.style.animation = 'shake 0.4s ease';
     el.addEventListener('animationend', () => { el.style.animation = ''; }, { once: true });
     el.focus();
   }
 
+  /* ------------------------------------------
+     Helper: show a field-level error message
+  ------------------------------------------ */
   function showFieldError(selector, msg) {
     const el = document.querySelector(selector);
     if (!el) return;
     el.parentElement.querySelector('.field-error')?.remove();
     const err = Object.assign(document.createElement('span'), {
-      className: 'field-error',
-      textContent: msg
+      className  : 'field-error',
+      textContent: msg,
     });
     err.style.cssText = 'font-size:0.75rem;color:#c0392b;margin-top:0.25rem;display:block;';
     el.parentElement.appendChild(err);
     el.addEventListener('input', () => err.remove(), { once: true });
   }
 
-  // Inject utility keyframes
+  /* ------------------------------------------
+     Helper: show a form-level error banner
+  ------------------------------------------ */
+  function showFormError(msg) {
+    form.querySelector('.form-error-banner')?.remove();
+    const banner = Object.assign(document.createElement('div'), {
+      className  : 'form-error-banner',
+      textContent: msg,
+    });
+    banner.style.cssText = `
+      background: #fdf2f2;
+      border: 1px solid #f5c6c6;
+      border-radius: 6px;
+      color: #c0392b;
+      font-size: 0.85rem;
+      line-height: 1.5;
+      padding: 0.75rem 1rem;
+      margin-bottom: 1rem;
+    `;
+    form.insertBefore(banner, form.firstChild);
+    banner.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
+
+  /* ------------------------------------------
+     Inject keyframes
+  ------------------------------------------ */
   const style = document.createElement('style');
   style.textContent = `
     @keyframes shake {
